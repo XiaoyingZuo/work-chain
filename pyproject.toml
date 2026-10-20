@@ -1,0 +1,22 @@
+[project]
+name = "work-chain"
+version = "0.1.0"
+description = "单机 Agent 工作流编排器:YAML 定义 DAG,节点可跑 LLM / Python / Shell,并发执行"
+requires-python = ">=3.10"
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+workchain = "workchain.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["workchain*"]

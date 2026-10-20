@@ -1,0 +1,28 @@
+name: demo-llm
+max_workers: 2
+
+# LLM 配置:支持 OpenAI 兼容网关。用 ${ENV} 从环境变量注入,避免把密钥写进文件。
+llm:
+  base_url: ${WORKCHAIN_LLM_BASE_URL}
+  api_key: ${WORKCHAIN_LLM_API_KEY}
+  model: ${WORKCHAIN_LLM_MODEL}
+
+params:
+  topic: "大模型 benchmark 的设计原则"
+
+nodes:
+  - name: outline
+    type: llm
+    prompt: "围绕「{{ params.topic }}」列出 5 条要点,直接给要点。"
+    outputs: [text]
+    retries: 1
+    timeout: 60
+
+  - name: expand
+    type: llm
+    needs: [outline]
+    prompt: |
+      根据下面的要点,挑第一条展开成一段话:
+      {{ nodes.outline.outputs.text }}
+    outputs: [text]
+    timeout: 60

@@ -1,0 +1,33 @@
+name: demo-shell-python
+max_workers: 4
+
+params:
+  topic: "benchmark 设计"
+
+nodes:
+  - name: seed
+    type: shell
+    command: "echo '{{ params.topic }}'"
+    outputs: [stdout]
+
+  - name: upper
+    type: python
+    needs: [seed]
+    entry: "examples.helpers:to_upper"
+    args:
+      text: "{{ nodes.seed.outputs.stdout }}"
+    outputs: [result]
+
+  - name: count
+    type: python
+    needs: [seed]
+    entry: "examples.helpers:char_count"
+    args:
+      text: "{{ nodes.seed.outputs.stdout }}"
+    outputs: [n]
+
+  - name: report
+    type: shell
+    needs: [upper, count]
+    command: "echo '大写={{ nodes.upper.outputs.result }} 字数={{ nodes.count.outputs.n }}'"
+    outputs: [stdout]

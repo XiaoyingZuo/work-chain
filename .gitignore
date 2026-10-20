@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# venv
+.venv/
+venv/
+env/
+
+# 本地运行产物
+*.log
+result*.json
+
+# 密钥/环境(务必不要提交真实密钥)
+.env
+.env.*
+*.pem
+*.key
+
+# 编辑器/系统
+.DS_Store
+.idea/
+.vscode/
