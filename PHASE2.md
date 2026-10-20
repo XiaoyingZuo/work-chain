@@ -4,30 +4,32 @@
 
 ## 背景:一期有意砍掉的东西
 
-一期为了快速跑通,刻意不做下列能力——不是不需要,而是归到二期:
+一期为了快速跑通,刻意不做下列能力——不是不需要,而是归到二期(部分已在 P0 补齐,见下):
 
-- 没有持久化:进程退出,运行状态即丢失,不能续跑。
+- ~~没有持久化:进程退出,运行状态即丢失,不能续跑。~~ → P0#1 已补齐
 - 没有服务化:只能命令行单次执行,无 API、无多 worker。
-- 失败即跳过下游,没有断点续跑 / 从失败节点重跑。
-- Python 节点的 `timeout` 无法真正中断(线程不可强杀);目前仅 shell/llm 的 timeout 生效。
+- ~~失败即跳过下游,没有断点续跑 / 从失败节点重跑。~~ → P0#1/#2 已补齐
+- Python 节点的 `timeout` 无法真正中断(线程不可强杀);目前仅 shell/llm 的 timeout 生效。(P0#3,未完成)
 - 无成本/耗时的结构化观测(只有每节点 duration)。
 
 ---
 
 ## P0:可靠性与可恢复(最该先做)
 
-### 1. 运行状态持久化 + 断点续跑
-把每次 run 的节点状态、outputs、attempts 落盘(SQLite 或 JSON 状态文件)。
-- 新增 `workchain resume <run_id>`:只跑未完成 / 失败的节点,已成功节点直接复用其 outputs。
-- 衔接点:`engine.RunReport` 已经是完整状态快照,持久化它即可;`_build_context` 读 outputs_store 改为可从磁盘回填。
+### 1. 运行状态持久化 + 断点续跑 ✅ 已完成
+- 每次 `run` 落盘到 `.workchain/runs/<run_id>.json`(JSON 状态文件,原子写),每个节点完成即 checkpoint,崩溃可续。
+- `workchain resume [run_id]`:复用已成功节点的 outputs,只补跑失败/未跑/被阻塞的;默认续最近一次。
+- `workchain runs` 列出历史 run。
+- 实现:`store.py`(RunStore)、`engine.run(cached=, checkpoint=)`、`resume.py`。
 
-### 2. 从失败节点重跑 / 单节点重跑
-`workchain run --from <node>` / `--only <node>`,配合持久化的上游 outputs。
-解决一期"改了下游一个节点,却要把整条链从头跑一遍(尤其 LLM 很贵)"的痛点。
+### 2. 从失败节点重跑 / 单节点重跑 ✅ 已完成
+- `workchain resume --from <node>`:该节点及其所有后代强制重跑,其余复用。
+- `workchain resume --only <node>`:只重跑该节点(校验其上游已成功),其余不动。
+- 实现:`dag.descendants`、`engine.run(runnable=)`、`resume.plan_from/plan_only`。
 
-### 3. Python 节点的真正超时与取消
-一期用线程池,无法强杀。二期可选:
-- 把 python 节点放进 `ProcessPoolExecutor`,用进程超时 + kill;
+### 3. Python 节点的真正超时与取消  ⬜ 未完成(P0 剩余项)
+一期用线程池,无法强杀,目前仅 shell/llm 的 `timeout` 生效,python 节点的 `timeout` 不起作用。可选方案:
+- 把 python 节点放进 `ProcessPoolExecutor`,用进程超时 + kill;因 entry 是 `module:func`/`file.py:func`,子进程里重新 import 即可,无需 pickle 函数本身,但 args/返回值需可 JSON 序列化(当前输出契约已要求 JSON 友好)。
 - 或提供 async 执行器,节点协程可被 cancel。
 需权衡:进程池带来序列化开销和跨进程 import 约束。
 
@@ -81,8 +83,8 @@ workflow 模板 + 版本 + 实例化,对应 Octo 的 templates/gallery。属于�
 
 ```
 一期(已完成)
-  → P0 持久化 + 断点续跑 + 单节点重跑   ← 投入产出比最高,立刻能用
-  → P1 成本/耗时观测                    ← LLM 场景几乎必做
+  → P0 持久化 + 断点续跑 + 单节点重跑   ✅ 已完成(剩 P0#3 python 硬超时)
+  → P1 成本/耗时观测                    ← LLM 场景几乎必做,建议下一步
   → P2 条件分支                         ← 按实际编排需求再加
   → P3 服务化                           ← 仅当需要多人/多机协作时
 ```

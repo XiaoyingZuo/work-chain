@@ -15,11 +15,28 @@ pip install -e .          # 仅依赖 PyYAML
 
 ```bash
 workchain validate examples/demo.yaml   # 只做静态校验,不执行
-workchain run examples/demo.yaml         # 执行
+workchain run examples/demo.yaml         # 执行(自动持久化运行状态)
 workchain run examples/demo.yaml -o result.json   # 结果写 JSON
 ```
 
 也可以不安装直接 `python3 -m workchain.cli run examples/demo.yaml`。
+
+## 断点续跑与部分重跑
+
+每次 `run` 会把运行状态落盘到 `.workchain/runs/<run_id>.json`(每个节点完成即 checkpoint,崩溃也能续)。
+
+```bash
+workchain runs                      # 列出历史 run 及成功/失败统计
+workchain resume                    # 续跑最近一次:复用已成功节点,只补跑失败/未跑/被阻塞的
+workchain resume <run_id>           # 续跑指定 run
+workchain resume --from b           # 从节点 b 起强制重跑(连同 b 的所有下游),其余复用
+workchain resume --only b           # 只重跑节点 b(要求其上游已成功),其余不动
+workchain run x.yaml --no-persist   # 本次不落盘(不可续跑)
+workchain run x.yaml --state-dir D  # 自定义状态目录
+```
+
+典型场景:链跑到一半某个 LLM 节点失败 → 改好后 `workchain resume`,前面成功的节点直接复用 outputs,不重复花钱重算。改了某个中间节点的 prompt → `resume --from 该节点`,只重跑它和下游。
+
 
 ## YAML 结构
 

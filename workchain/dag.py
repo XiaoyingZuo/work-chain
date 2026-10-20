@@ -78,3 +78,27 @@ def blocked_nodes(
                 blocked.add(n)
                 changed = True
     return blocked
+
+
+def descendants(
+    names: Iterable[str],
+    needs: Dict[str, List[str]],
+    roots: Iterable[str],
+) -> Set[str]:
+    """返回 roots 的全部后代(不含 roots 自身),用于 --from 失效下游。"""
+    names = list(names)
+    children: Dict[str, List[str]] = {n: [] for n in names}
+    for node, parents in needs.items():
+        for p in parents:
+            if p in children:
+                children[p].append(node)
+
+    result: Set[str] = set()
+    stack = list(roots)
+    while stack:
+        cur = stack.pop()
+        for child in children.get(cur, []):
+            if child not in result:
+                result.add(child)
+                stack.append(child)
+    return result
